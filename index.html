@@ -1,0 +1,539 @@
+<title>Duong Anh Quan</title>
+<meta name="description" content="Duong Anh Quan — Senior AI Engineer in Hanoi. Generative AI and agentic systems: document-parsing agents, deep research agents and computer-use agents.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  :root {
+    --paper: #F1F3F0;
+    --sheet: #FAFBF9;
+    --ink: #14171C;
+    --muted: #5B626C;
+    --rule: #D4D8D2;
+    --box: #2E4FE0;
+    --box-soft: rgba(46, 79, 224, 0.07);
+    --mark: #B7410E;
+    --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #0F1215;
+      --sheet: #151A1E;
+      --ink: #E6E8EA;
+      --muted: #98A0AA;
+      --rule: #2A3036;
+      --box: #8197FF;
+      --box-soft: rgba(129, 151, 255, 0.09);
+      --mark: #F08A55;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #0F1215;
+    --sheet: #151A1E;
+    --ink: #E6E8EA;
+    --muted: #98A0AA;
+    --rule: #2A3036;
+    --box: #8197FF;
+    --box-soft: rgba(129, 151, 255, 0.09);
+    --mark: #F08A55;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
+  a { color: inherit; text-decoration-color: var(--box); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:hover { color: var(--box); }
+  :focus-visible { outline: 2px solid var(--box); outline-offset: 3px; border-radius: 2px; }
+  .mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.01em; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding-block: 20px;
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+  }
+  .bar nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  .bar nav a { text-decoration: none; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted); background: none; border: 0; padding: 4px 0;
+  }
+  .toggle .track {
+    width: 30px; height: 16px; border-radius: 8px; border: 1px solid var(--box);
+    position: relative; transition: background .2s;
+  }
+  .toggle .track::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--box); transition: transform .2s;
+  }
+  .toggle[aria-pressed="true"] .track { background: var(--box-soft); }
+  .toggle[aria-pressed="true"] .track::after { transform: translateX(14px); }
+
+  /* ---------- hero: the parsed page ---------- */
+  .hero {
+    position: relative;
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    padding: clamp(48px, 6vw, 72px) clamp(20px, 5vw, 64px) clamp(32px, 5vw, 56px);
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .hero-grid { display: grid; gap: clamp(22px, 3vw, 34px); }
+  .det { position: relative; }
+  .det::before {
+    content: ""; position: absolute; inset: -8px -10px;
+    border: 1.5px solid var(--box); background: var(--box-soft);
+    pointer-events: none;
+    opacity: 0; transform: scale(.985);
+    transition: opacity .35s ease, transform .35s ease;
+    transition-delay: var(--d, 0s);
+  }
+  .det::after {
+    content: attr(data-label) " " attr(data-score);
+    position: absolute; left: -10px; bottom: calc(100% + 8px);
+    font-family: var(--mono); font-size: 11px; line-height: 1; white-space: nowrap;
+    font-weight: 500; font-style: normal; text-transform: none; letter-spacing: 0;
+    font-stretch: 100%; font-variation-settings: normal;
+    color: var(--sheet); background: var(--box); padding: 3px 6px 3px;
+    opacity: 0; transition: opacity .35s ease; transition-delay: var(--d, 0s);
+    pointer-events: none;
+  }
+  .overlay-on .det::before { opacity: 1; transform: none; }
+  .overlay-on .det::after { opacity: 1; }
+  .scanning .det::before { animation: boxIn .4s ease backwards; animation-delay: var(--d, 0s); }
+  .scanning .det::after { animation: labelIn .4s ease backwards; animation-delay: var(--d, 0s); }
+  @keyframes boxIn { from { opacity: 0; transform: scale(.985); } }
+  @keyframes labelIn { from { opacity: 0; } }
+
+  .scan {
+    position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--box) 15%, var(--box) 85%, transparent);
+    box-shadow: 0 0 18px 2px var(--box);
+    opacity: 0; pointer-events: none;
+  }
+  .scanning .scan { animation: scan 1.3s cubic-bezier(.45,.05,.4,1) forwards; }
+  @keyframes scan {
+    0% { top: 0; opacity: 0; }
+    8% { opacity: .85; }
+    92% { opacity: .85; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  .name {
+    font-family: var(--display);
+    font-variation-settings: "wdth" 125;
+    font-stretch: 125%;
+    font-weight: 850;
+    font-size: clamp(44px, 9.4vw, 116px);
+    line-height: .92;
+    letter-spacing: -0.025em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .role {
+    font-family: var(--display);
+    font-stretch: 75%; font-variation-settings: "wdth" 75;
+    font-weight: 600; text-transform: uppercase; letter-spacing: .14em;
+    font-size: clamp(15px, 1.6vw, 19px);
+    margin: 0; width: fit-content;
+  }
+  .thesis {
+    font-size: clamp(20px, 2.3vw, 27px); line-height: 1.38;
+    max-width: 30ch; margin: 0; text-wrap: pretty;
+  }
+  .thesis em { font-style: italic; color: var(--muted); }
+  .hero-foot {
+    display: flex; flex-wrap: wrap; gap: 14px 34px; align-items: baseline;
+  }
+  .meta { color: var(--muted); }
+  .meta b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- sections ---------- */
+  section { padding-block: clamp(56px, 8vw, 96px) 0; }
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    border-bottom: 1.5px solid var(--ink); padding-bottom: 12px; margin-bottom: 8px;
+  }
+  .sec-head h2 {
+    font-family: var(--display); font-stretch: 112%; font-variation-settings: "wdth" 112;
+    font-weight: 800; font-size: clamp(26px, 3.4vw, 38px); letter-spacing: -0.01em; line-height: 1.05;
+    margin: 0;
+  }
+  .sec-head .tag { color: var(--box); }
+
+  /* ---------- agents ---------- */
+  .lede { max-width: 60ch; font-size: 19px; color: var(--muted); margin: 18px 0 28px; text-wrap: pretty; }
+  .agents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .agent {
+    background: var(--sheet); border: 1px solid var(--rule);
+    padding: 24px 24px 26px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .agent-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .where { color: var(--muted); font-size: 12px; }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; color: var(--box);
+    border: 1px solid currentColor; padding: 1px 7px; border-radius: 2px; white-space: nowrap;
+  }
+  .agent h3 {
+    font-family: var(--display); font-stretch: 108%; font-variation-settings: "wdth" 108;
+    font-weight: 750; font-size: 22px; line-height: 1.2; margin: 0; text-wrap: balance;
+  }
+  .agent ul { margin: 0; padding-left: 1.1em; }
+  .agent ul li { margin: 3px 0; }
+  .agent ul li::marker { color: var(--muted); }
+  .agent .result { margin-top: auto; align-self: flex-start; }
+  .loop {
+    list-style: none; margin: 2px 0 4px; padding: 0;
+    display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; font-size: 12px;
+  }
+  .loop li {
+    position: relative; padding: 3px 8px;
+    border: 1px solid var(--box); color: var(--box); background: var(--box-soft);
+  }
+  .loop li + li { margin-left: 22px; }
+  .loop li + li::before {
+    content: "→"; position: absolute; left: -22px; width: 22px; text-align: center; color: var(--muted);
+  }
+  .loop li.back::after { content: " ↺"; }
+  .aside {
+    display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap;
+    margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--rule);
+  }
+  .aside .k { color: var(--box); text-transform: uppercase; letter-spacing: .1em; font-size: 11.5px; }
+  .aside p { margin: 0; }
+  .aside b { font-weight: 600; }
+  .result {
+    display: inline-flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline;
+    font-family: var(--mono); font-size: 13px;
+    border-left: 2px solid var(--mark); padding: 2px 0 2px 12px;
+  }
+  .result b { color: var(--mark); font-weight: 500; }
+  .result span { color: var(--muted); }
+  .found .what { font-size: 18px; }
+
+  /* ---------- publications ---------- */
+  .pubs { list-style: none; padding: 0; margin: 0; }
+  .pub {
+    display: grid; grid-template-columns: 150px 1fr; gap: 6px 40px;
+    padding-block: 22px; border-bottom: 1px solid var(--rule);
+  }
+  .pub:last-child { border-bottom: 0; }
+  .venue { color: var(--muted); }
+  .venue b { display: block; color: var(--ink); font-weight: 500; }
+  .pub h3 { font-family: var(--body); font-weight: 600; font-size: 19px; line-height: 1.35; margin: 0 0 4px; text-wrap: balance; }
+  .pub h3 a { text-decoration: none; }
+  .pub h3 a:hover { text-decoration: underline; }
+  .authors { color: var(--muted); font-size: 15.5px; margin: 0; }
+  .authors strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- education + awards ---------- */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; }
+  .list { list-style: none; padding: 0; margin: 0; }
+  .list li {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 20px;
+    padding-block: 16px; border-bottom: 1px solid var(--rule);
+  }
+  .list li:last-child { border-bottom: 0; }
+  .list .what { font-family: var(--display); font-weight: 650; font-size: 17px; line-height: 1.3; }
+  .list .when { font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .list .who { grid-column: 1 / -1; color: var(--muted); font-size: 15.5px; }
+
+  /* ---------- contact ---------- */
+  .contact {
+    margin-block: clamp(64px, 9vw, 110px) 48px;
+    background: var(--sheet); border: 1px solid var(--rule);
+    padding: clamp(28px, 5vw, 56px);
+    display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: end;
+  }
+  .contact h2 {
+    font-family: var(--display); font-stretch: 118%; font-variation-settings: "wdth" 118;
+    font-weight: 820; font-size: clamp(30px, 4.6vw, 54px); line-height: 1; margin: 0 0 14px;
+    letter-spacing: -0.015em; text-wrap: balance;
+  }
+  .contact p { margin: 0; color: var(--muted); max-width: 42ch; }
+  .channels { display: grid; gap: 14px; }
+  .channel { display: grid; gap: 2px; }
+  .channel .k { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  .channel .v { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 19px; }
+  .copy {
+    font-family: var(--mono); font-size: 12px; color: var(--box); background: none;
+    border: 1px solid var(--box); border-radius: 2px; padding: 2px 8px; cursor: pointer;
+  }
+  .copy:hover { background: var(--box-soft); }
+  footer { padding-block: 0 40px; color: var(--muted); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 820px) {
+    .agents { grid-template-columns: 1fr; }
+    .pub { grid-template-columns: 1fr; }
+    .two { grid-template-columns: 1fr; gap: 48px; }
+    .contact { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    body { font-size: 16px; }
+    .det::after { font-size: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .det::before, .det::after { transition: none; }
+    .scanning .scan { animation: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <span>quandapro / portfolio</span>
+    <nav aria-label="Sections">
+      <a href="#work">Agents</a>
+      <a href="#foundations">Foundations</a>
+      <a href="#publications">Publications</a>
+      <a href="#recognition">Recognition</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <div class="hero overlay-on" id="hero">
+    <div class="scan" aria-hidden="true"></div>
+    <div class="hero-grid">
+      <h1 class="name det" data-label="title" data-score="0.99" style="--d:.15s">Duong<br>Anh Quan</h1>
+      <p class="role det" data-label="subtitle" data-score="0.97" style="--d:.45s">Senior AI Engineer · Generative AI &amp; agentic systems</p>
+      <p class="thesis det" data-label="text" data-score="0.95" style="--d:.7s">
+        I build agents that read documents, research the web and operate software.
+      </p>
+      <div class="hero-foot">
+        <span class="meta mono det" data-label="metadata" data-score="0.93" style="--d:.95s"><b>Hanoi, Vietnam</b> · MS AI, Pusan National University</span>
+        <button class="toggle mono" id="overlayToggle" aria-pressed="true" type="button">
+          <span class="track" aria-hidden="true"></span> Layout overlay
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== AGENTS & GENAI ===================== -->
+  <section id="work" aria-labelledby="work-h">
+    <div class="sec-head">
+      <h2 id="work-h">Generative AI &amp; agentic systems</h2>
+      <span class="mono tag">2024 → 2026</span>
+    </div>
+    <p class="lede">I build multimodal agents that read messy documents, research questions across many sources, and operate software through its screen. Each one checks its own work before it hands anything back.</p>
+
+    <div class="agents">
+      <article class="agent">
+        <div class="agent-head">
+          <span class="mono where">VinSmart Future · 2026</span>
+          <span class="chip">Staff engineer</span>
+        </div>
+        <h3>Agentic document parsing</h3>
+        <ol class="loop mono" aria-label="Agent loop">
+          <li>layout model</li><li>VLM OCR</li><li>visual reflection</li><li class="back">self-heal</li>
+        </ol>
+        <ul>
+          <li>Multi-agent loop: agents compare their parse to the page image and repair what doesn’t match.</li>
+          <li>Optimized the layout model and VLM behind OCR on hard, scanned PDFs.</li>
+        </ul>
+        <div class="result"><b>WER 9% → 5%</b><span>on a challenging scanned-PDF test set</span></div>
+      </article>
+
+      <article class="agent">
+        <div class="agent-head">
+          <span class="mono where">VinSmart Future · 2026</span>
+          <span class="chip">Main researcher</span>
+        </div>
+        <h3>Deep research agent</h3>
+        <ol class="loop mono" aria-label="Agent loop">
+          <li>explore</li><li>discover</li><li>cross-source fact-check</li><li class="back">self-reflect</li>
+        </ol>
+        <ul>
+          <li>Agent framework for thorough, long-horizon exploration and knowledge discovery.</li>
+          <li>Raised citation accuracy and cut hallucinated citations by checking claims across sources.</li>
+        </ul>
+      </article>
+
+      <article class="agent">
+        <div class="agent-head">
+          <span class="mono where">FPT Smart Cloud · 2024 – 2026</span>
+          <span class="chip">Main researcher</span>
+        </div>
+        <h3>Computer-use agent for enterprise workflows</h3>
+        <ol class="loop mono" aria-label="Agent loop">
+          <li>perceive screen</li><li>plan</li><li class="back">act</li>
+        </ol>
+        <ul>
+          <li>Designed and optimized the agent workflow that automates business processes end to end.</li>
+          <li>Benchmarked commercial and open-source LLMs for computer use.</li>
+          <li>Fine-tuned self-hosted LLMs for screen perception and planning.</li>
+        </ul>
+      </article>
+
+      <article class="agent">
+        <div class="agent-head">
+          <span class="mono where">FPT Smart Cloud · 2024 – 2026</span>
+          <span class="chip">Lead researcher</span>
+        </div>
+        <h3>Ad video generation for clothing</h3>
+        <ol class="loop mono" aria-label="Pipeline">
+          <li>business brief</li><li>diffusion video model</li><li>ad video</li>
+        </ol>
+        <ul>
+          <li>Compared open-source diffusion models for video against the customer’s requirements.</li>
+          <li>Designed a fully automated generation system and shipped it.</li>
+        </ul>
+        <div class="result"><b>Deployed</b><span>in production for the customer</span></div>
+      </article>
+    </div>
+
+    <div class="aside">
+      <span class="mono k">Also</span>
+      <p><b>First Prize, Five-up AI Hackathon</b> at FPT Smart Cloud for a browsing AI assistant.</p>
+    </div>
+  </section>
+
+  <!-- ===================== FOUNDATIONS ===================== -->
+  <section id="foundations" aria-labelledby="found-h">
+    <div class="sec-head">
+      <h2 id="found-h">Before agents</h2>
+      <span class="mono tag">vision · medical imaging · systems</span>
+    </div>
+    <p class="lede">The perception work underneath: computer vision in production, and research on the brain.</p>
+    <ul class="list found">
+      <li><span class="what">Video compliance for F&amp;B — project lead, team of 7</span><span class="when">FPT · 2024–26</span><span class="who">Architecture across platform, AI engine and stream management for customer counting, staff compliance and customer loyalty.</span></li>
+      <li><span class="what">Face recognition for liveness — top 50 on NIST FRTE</span><span class="when">FPT · 2024–26</span><span class="who">ArcFace models for 1:1 and 1:N matching, trained on crawled and cleaned face data.</span></li>
+      <li><span class="what">Fraud detection for government photo IDs — FAR &amp; FRR &lt; 1%</span><span class="when">FPT · 2024–26</span><span class="who">Led three associates in recreating forged IDs; deployed models for physical and digital fraud.</span></li>
+      <li><span class="what">Surface-based transformers for early Alzheimer’s detection</span><span class="when">PNU lab · 2022–24</span><span class="who">Multimodal cortical analysis, shown stronger than volume-based approaches. First author, Scientific Reports.</span></li>
+      <li><span class="what">Few-shot contrastive learning for parkinsonian syndromes</span><span class="when">PNU lab · 2022–24</span><span class="who">Learning from very small clinical datasets. Co-author, NeuroImage.</span></li>
+      <li><span class="what">PACS for hospitals — main developer</span><span class="when">Minerva · 2019–22</span><span class="who">Optimized the DICOM toolkit for image transmission, query/retrieve and storage. In use at several major hospitals.</span></li>
+    </ul>
+  </section>
+
+  <!-- ===================== PUBLICATIONS ===================== -->
+  <section id="publications" aria-labelledby="pub-h">
+    <div class="sec-head">
+      <h2 id="pub-h">Publications</h2>
+      <span class="mono tag">4 peer-reviewed</span>
+    </div>
+    <ol class="pubs" reversed>
+      <li class="pub">
+        <div class="venue mono"><b>Scientific Reports</b>Feb 2025</div>
+        <div>
+          <h3><a href="https://www.nature.com/articles/s41598-025-90115-y" target="_blank" rel="noopener">Multimodal surface-based transformer model for early diagnosis of Alzheimer’s disease</a></h3>
+          <p class="authors"><strong>Duong QA</strong>, Tran SD, Gahm JK · 15(1):5787</p>
+        </div>
+      </li>
+      <li class="pub">
+        <div class="venue mono"><b>NeuroImage</b>Dec 2024</div>
+        <div>
+          <h3><a href="https://www.sciencedirect.com/science/article/pii/S1053811924004373" target="_blank" rel="noopener">Differentiating atypical parkinsonian syndromes with hyperbolic few-shot contrastive learning</a></h3>
+          <p class="authors">Choi WJ, HwangBo J, <strong>Duong QA</strong>, Lee JH, Gahm JK · 304:120940</p>
+        </div>
+      </li>
+      <li class="pub">
+        <div class="venue mono"><b>ShapeMI · MICCAI</b>Oct 2024</div>
+        <div>
+          <h3><a href="https://link.springer.com/chapter/10.1007/978-3-031-75291-9_14" target="_blank" rel="noopener">Enhancing multimodal image-based classification of Alzheimer’s disease with surface information</a></h3>
+          <p class="authors">Tran SD, <strong>Duong QA</strong>, Gahm JK · Shape in Medical Imaging, pp. 178–188</p>
+        </div>
+      </li>
+      <li class="pub">
+        <div class="venue mono"><b>IEEE Access</b>Mar 2024</div>
+        <div>
+          <h3><a href="https://ieeexplore.ieee.org/document/10478896" target="_blank" rel="noopener">Multimodal 3D deep learning for early diagnosis of Alzheimer’s disease</a></h3>
+          <p class="authors">Kim SK, <strong>Duong QA</strong>, Gahm JK</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===================== RECOGNITION + EDUCATION ===================== -->
+  <section id="recognition" aria-labelledby="rec-h">
+    <div class="two">
+      <div>
+        <div class="sec-head"><h2 id="rec-h">Recognition</h2></div>
+        <ul class="list">
+          <li><span class="what">First Prize, Five-up AI Hackathon — browsing AI assistant</span><span class="when"></span><span class="who">FPT Smart Cloud</span></li>
+          <li><span class="what">Best Student Paper Award</span><span class="when">Jan 2024</span><span class="who">10th Korea–Japan Joint Workshop on Complex Communication Sciences</span></li>
+          <li><span class="what">42nd place, UW-Madison GI Tract Image Segmentation</span><span class="when">Jul 2022</span><span class="who">Kaggle</span></li>
+          <li><span class="what">First Prize, Science Conference for Students</span><span class="when">Apr 2021</span><span class="who">VNU Hanoi University of Science</span></li>
+          <li><span class="what">Third Prize, Vietnam Collegiate Programming Contest</span><span class="when">Dec 2019</span><span class="who">Ministry of Education</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="sec-head"><h2>Education</h2></div>
+        <ul class="list">
+          <li><span class="what">MS, Artificial Intelligence</span><span class="when">2022 – 2024</span><span class="who">Pusan National University · Grade: Excellent</span></li>
+          <li><span class="what">BS, Computer and Information Sciences</span><span class="when">2017 – 2021</span><span class="who">VNU University of Science · Top 5% of faculty</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CONTACT ===================== -->
+  <section id="contact" class="contact" aria-labelledby="contact-h">
+    <div>
+      <h2 id="contact-h">Building agents that need to see?</h2>
+      <p>I’m glad to talk about multimodal agents, document AI, deep research and computer use.</p>
+    </div>
+    <div class="channels">
+      <div class="channel">
+        <span class="k">Email</span>
+        <span class="v"><a href="mailto:quandapro@gmail.com" id="email">quandapro@gmail.com</a>
+          <button class="copy" type="button" id="copyEmail">Copy</button></span>
+      </div>
+      <div class="channel">
+        <span class="k">LinkedIn</span>
+        <span class="v"><a href="https://www.linkedin.com/in/quandapro/" target="_blank" rel="noopener">linkedin.com/in/quandapro</a></span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mono">© 2026 Duong Anh Quan · Hanoi</footer>
+</div>
+
+<script>
+  (function () {
+    var hero = document.getElementById('hero');
+    var toggle = document.getElementById('overlayToggle');
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Sweep the scan line once on load; boxes stay visible if this never runs.
+    if (!reduce) hero.classList.add('scanning');
+
+    toggle.addEventListener('click', function () {
+      var on = hero.classList.toggle('overlay-on');
+      toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on && !reduce) {
+        hero.classList.remove('scanning');
+        void hero.offsetWidth;
+        hero.classList.add('scanning');
+      }
+    });
+
+    var btn = document.getElementById('copyEmail');
+    btn.addEventListener('click', function () {
+      var text = 'quandapro@gmail.com';
+      function done(label) { btn.textContent = label; setTimeout(function () { btn.textContent = 'Copy'; }, 1600); }
+      function fallback() {
+        var r = document.createRange(); r.selectNodeContents(document.getElementById('email'));
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        done('Selected');
+      }
+      try {
+        navigator.clipboard.writeText(text).then(function () { done('Copied'); }, fallback);
+      } catch (e) { fallback(); }
+    });
+  })();
+</script>
