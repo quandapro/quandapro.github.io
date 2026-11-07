@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leash · AI agent gateway</title>
+<meta name="description" content="Leash is a self-hosted gateway for AI coding agents: spending caps, a loop kill switch and secret redaction between Claude Code, Codex and the model API. Open source, MIT, zero runtime dependencies.">
+<meta property="og:title" content="Leash · AI agent gateway">
+<meta property="og:description" content="Spending caps, a loop kill switch and secret redaction between your AI agents and the model API. Self-hosted, open source.">
+<meta property="og:url" content="https://quandapro.github.io/products/leash/">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314171C'/%3E%3Cpath d='M10 7v15h12' fill='none' stroke='%238197FF' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='22' cy='22' r='3' fill='%23F08A55'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  :root {
+    --paper: #F1F3F0;
+    --sheet: #FAFBF9;
+    --ink: #14171C;
+    --muted: #5B626C;
+    --rule: #D4D8D2;
+    --box: #2E4FE0;
+    --box-soft: rgba(46, 79, 224, 0.07);
+    --mark: #B7410E;
+    --mark-soft: rgba(183, 65, 14, 0.08);
+    --ok: #2F7D4F;
+    --term: #14171C;
+    --term-ink: #D9DDE2;
+    --term-muted: #7D8590;
+    --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #0F1215;
+      --sheet: #151A1E;
+      --ink: #E6E8EA;
+      --muted: #98A0AA;
+      --rule: #2A3036;
+      --box: #8197FF;
+      --box-soft: rgba(129, 151, 255, 0.09);
+      --mark: #F08A55;
+      --mark-soft: rgba(240, 138, 85, 0.1);
+      --ok: #6CC594;
+      --term: #0A0C0F;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #0F1215;
+    --sheet: #151A1E;
+    --ink: #E6E8EA;
+    --muted: #98A0AA;
+    --rule: #2A3036;
+    --box: #8197FF;
+    --box-soft: rgba(129, 151, 255, 0.09);
+    --mark: #F08A55;
+    --mark-soft: rgba(240, 138, 85, 0.1);
+    --ok: #6CC594;
+    --term: #0A0C0F;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
+  a { color: inherit; text-decoration-color: var(--box); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:hover { color: var(--box); }
+  :focus-visible { outline: 2px solid var(--box); outline-offset: 3px; border-radius: 2px; }
+  .mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.01em; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--box-soft); padding: 1px 5px; border-radius: 2px; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding-block: 20px;
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+  }
+  .bar a { text-decoration: none; }
+  .bar nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  .crumbs b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    padding: clamp(40px, 6vw, 72px) clamp(20px, 5vw, 64px) clamp(28px, 5vw, 56px);
+    margin-top: 4px;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(28px, 4vw, 56px);
+    align-items: center;
+  }
+  .name {
+    font-family: var(--display);
+    font-variation-settings: "wdth" 125;
+    font-stretch: 125%;
+    font-weight: 850;
+    font-size: clamp(60px, 8.6vw, 118px);
+    line-height: .88;
+    letter-spacing: -0.03em;
+    margin: 0 0 22px;
+  }
+  .name span { color: var(--mark); }
+  .role {
+    font-family: var(--display);
+    font-stretch: 75%; font-variation-settings: "wdth" 75;
+    font-weight: 600; text-transform: uppercase; letter-spacing: .14em;
+    font-size: clamp(14px, 1.5vw, 18px);
+    margin: 0 0 14px; color: var(--box);
+  }
+  .thesis {
+    font-size: clamp(19px, 2.1vw, 25px); line-height: 1.38;
+    max-width: 30ch; margin: 0 0 28px; text-wrap: pretty;
+  }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 13.5px; text-decoration: none;
+    padding: 10px 16px; border: 1.5px solid var(--ink); border-radius: 2px;
+  }
+  .btn.primary { background: var(--ink); color: var(--sheet); }
+  .btn.primary:hover { background: var(--box); border-color: var(--box); color: #fff; }
+  .btn:not(.primary):hover { border-color: var(--box); }
+  .btn svg { width: 16px; height: 16px; fill: currentColor; }
+  .fine { margin-top: 18px; color: var(--muted); }
+
+  /* ---------- gateway log ---------- */
+  .log {
+    background: var(--term); color: var(--term-ink);
+    border: 1px solid var(--rule); border-radius: 4px; overflow: hidden;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+    box-shadow: 0 1px 0 var(--rule), 0 18px 40px -24px rgba(20, 23, 28, .55);
+  }
+  .log-head {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.08); color: var(--term-muted);
+  }
+  .log-head b { color: var(--term-ink); font-weight: 500; }
+  .live::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #6CC594; margin-right: 7px; vertical-align: 1px;
+  }
+  .log ol { list-style: none; margin: 0; padding: 10px 0 12px; min-height: 302px; }
+  .log li {
+    display: grid; grid-template-columns: 4.6em 2.6em minmax(0, 1fr) auto; gap: 0 12px;
+    padding: 3px 14px;
+  }
+  .log .t { color: var(--term-muted); }
+  .log .s { color: #6CC594; }
+  .log .w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log .c { color: var(--term-muted); text-align: right; }
+  .log .fail { color: #F0A070; }
+  .log .red { color: #8197FF; }
+  .log li.blocked { background: rgba(240, 138, 85, .12); box-shadow: inset 2px 0 0 #F08A55; }
+  .log li.blocked .s { color: #F08A55; }
+  .log li.note { grid-template-columns: minmax(0, 1fr); color: var(--term-muted); padding-top: 8px; }
+  .log li.note b { color: var(--term-ink); font-weight: 500; }
+  .js .log li.pending { visibility: hidden; }
+  .js .log li.in { animation: rowIn .35s ease both; }
+  @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } }
+
+  /* ---------- sections ---------- */
+  section { padding-block: clamp(56px, 8vw, 96px) 0; }
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    border-bottom: 1.5px solid var(--ink); padding-bottom: 12px; margin-bottom: 8px;
+  }
+  .sec-head h2 {
+    font-family: var(--display); font-stretch: 112%; font-variation-settings: "wdth" 112;
+    font-weight: 800; font-size: clamp(26px, 3.4vw, 38px); letter-spacing: -0.01em; line-height: 1.05;
+    margin: 0;
+  }
+  .sec-head .tag { color: var(--box); }
+  .lede { max-width: 62ch; font-size: 19px; color: var(--muted); margin: 18px 0 28px; text-wrap: pretty; }
+
+  /* problem */
+  .problems { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 36px; }
+  .problem { padding-top: 18px; border-top: 1px solid var(--rule); }
+  .problem .k { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--mark); }
+  .problem h3 { font-family: var(--display); font-weight: 720; font-size: 21px; line-height: 1.25; margin: 6px 0 8px; text-wrap: balance; }
+  .problem p { margin: 0; color: var(--muted); }
+
+  /* guards */
+  .guards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .guard {
+    background: var(--sheet); border: 1px solid var(--rule);
+    padding: 22px 22px 24px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .guard h3 {
+    font-family: var(--display); font-stretch: 108%; font-variation-settings: "wdth" 108;
+    font-weight: 750; font-size: 21px; line-height: 1.2; margin: 0;
+  }
+  .guard p { margin: 0; }
+  .result {
+    margin-top: auto; align-self: flex-start;
+    display: inline-flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline;
+    font-family: var(--mono); font-size: 12.5px;
+    border-left: 2px solid var(--mark); padding: 2px 0 2px 12px;
+  }
+  .result b { color: var(--mark); font-weight: 500; }
+  .result span { color: var(--muted); }
+
+  /* pipeline */
+  .flow {
+    list-style: none; margin: 8px 0 0; padding: 0;
+    display: flex; flex-wrap: wrap; align-items: center; row-gap: 10px; font-family: var(--mono); font-size: 13px;
+  }
+  .flow li { position: relative; padding: 5px 10px; border: 1px solid var(--box); color: var(--box); background: var(--box-soft); }
+  .flow li.end { border-color: var(--ink); color: var(--ink); background: none; }
+  .flow li + li { margin-left: 26px; }
+  .flow li + li::before { content: "→"; position: absolute; left: -26px; width: 26px; text-align: center; color: var(--muted); }
+  .how { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; margin-top: 36px; align-items: start; }
+  .how ol.steps { margin: 0; padding-left: 1.2em; }
+  .how ol.steps li { margin: 0 0 12px; }
+  .how ol.steps li::marker { font-family: var(--mono); color: var(--box); font-size: 14px; }
+  .how b { font-weight: 600; }
+
+  /* code */
+  .code {
+    position: relative; background: var(--term); color: var(--term-ink);
+    border-radius: 4px; margin: 0;
+  }
+  .code pre {
+    margin: 0; padding: 16px 18px; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.6;
+  }
+  .code .cap {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 8px 10px 8px 18px; border-bottom: 1px solid rgba(255,255,255,.08);
+    font-family: var(--mono); font-size: 11.5px; color: var(--term-muted); text-transform: uppercase; letter-spacing: .08em;
+  }
+  .code .cm { color: var(--term-muted); }
+  .code .k2 { color: #8197FF; }
+  .code .st { color: #F0A070; }
+  .copy {
+    font-family: var(--mono); font-size: 11.5px; color: var(--term-ink); background: none; text-transform: none; letter-spacing: 0;
+    border: 1px solid rgba(255,255,255,.22); border-radius: 2px; padding: 2px 9px; cursor: pointer;
+  }
+  .copy:hover { border-color: #8197FF; color: #8197FF; }
+
+  /* setup */
+  .setup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .step-h { display: flex; gap: 12px; align-items: baseline; margin: 0 0 10px; }
+  .step-h .n { font-family: var(--mono); font-size: 12px; color: var(--box); border: 1px solid var(--box); padding: 0 6px; border-radius: 2px; }
+  .step-h h3 { font-family: var(--display); font-weight: 720; font-size: 19px; margin: 0; }
+  .setup .wide { grid-column: 1 / -1; }
+  .note-line { color: var(--muted); font-size: 15.5px; margin: 10px 0 0; }
+
+  /* facts */
+  .facts { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .facts li { padding: 22px 20px 22px 0; border-bottom: 1px solid var(--rule); }
+  .facts li + li { padding-left: 20px; border-left: 1px solid var(--rule); }
+  .facts .v {
+    display: block; font-family: var(--display); font-stretch: 112%; font-variation-settings: "wdth" 112;
+    font-weight: 800; font-size: clamp(32px, 4vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .facts .l { display: block; margin-top: 8px; color: var(--muted); font-size: 15.5px; }
+  .list { list-style: none; padding: 0; margin: 12px 0 0; }
+  .list li { display: grid; grid-template-columns: 220px 1fr; gap: 4px 28px; padding-block: 14px; border-bottom: 1px solid var(--rule); }
+  .list li:last-child { border-bottom: 0; }
+  .list .what { font-family: var(--display); font-weight: 650; font-size: 17px; line-height: 1.3; }
+  .list .who { color: var(--muted); }
+
+  /* cta */
+  .cta {
+    margin-block: clamp(64px, 9vw, 110px) 48px;
+    background: var(--sheet); border: 1px solid var(--rule);
+    padding: clamp(28px, 5vw, 56px);
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; align-items: end;
+  }
+  .cta h2 {
+    font-family: var(--display); font-stretch: 118%; font-variation-settings: "wdth" 118;
+    font-weight: 820; font-size: clamp(30px, 4.6vw, 54px); line-height: 1; margin: 0 0 14px;
+    letter-spacing: -0.015em; text-wrap: balance;
+  }
+  .cta p { margin: 0; color: var(--muted); max-width: 44ch; }
+  .cta .ctas { justify-content: flex-start; }
+  .soon { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); }
+  .soon .chip { font-family: var(--mono); font-size: 11px; color: var(--mark); border: 1px solid currentColor; padding: 0 6px; border-radius: 2px; }
+  footer { padding-block: 0 40px; color: var(--muted); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a { text-decoration: none; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; }
+    .guards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .problems { grid-template-columns: 1fr; gap: 22px; }
+    .how, .setup, .cta { grid-template-columns: minmax(0, 1fr); }
+    .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .facts li:nth-child(3) { padding-left: 0; border-left: 0; }
+  }
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    .guards { grid-template-columns: 1fr; }
+    .log { font-size: 11.5px; }
+    .log li { grid-template-columns: 2.4em minmax(0, 1fr) auto; gap: 0 10px; padding-inline: 12px; }
+    .log .t, .log .agent-name { display: none; }
+    .list li { grid-template-columns: 1fr; }
+    .flow li + li { margin-left: 22px; }
+    .flow li + li::before { left: -22px; width: 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .js .log li.in { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <span class="crumbs"><a href="/">quandapro</a> / products / <b>leash</b></span>
+    <nav aria-label="Sections">
+      <a href="#guards">Guards</a>
+      <a href="#how">How it works</a>
+      <a href="#setup">Setup</a>
+      <a href="https://github.com/quandapro/leash">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div>
+      <p class="role">Self-hosted gateway for AI agents</p>
+      <h1 class="name">Leash<span>.</span></h1>
+      <p class="thesis">Spending caps, a loop kill switch and secret redaction, sitting between your agents and the model API.</p>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/quandapro/leash">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View on GitHub
+        </a>
+        <a class="btn" href="#setup">Deploy with Docker</a>
+      </div>
+      <p class="fine mono">MIT · zero runtime dependencies · Claude Code, Codex and OpenAI-compatible clients</p>
+    </div>
+
+    <figure class="log" aria-label="Example gateway log: a coding agent's requests, one secret redacted, then the session is paused after the same test fails three times" style="margin:0">
+      <div class="log-head"><span><b>leash</b> · session a3f9<span class="agent-name"> · claude-code</span></span><span class="live">live</span></div>
+      <ol id="log">
+        <li><span class="t">11:42:07</span><span class="s">200</span><span class="w">Read src/billing.ts</span><span class="c">$0.012</span></li>
+        <li><span class="t">11:42:09</span><span class="s">200</span><span class="w">prompt <span class="red">AKIA…  → [REDACTED:aws_access_key]</span></span><span class="c">$0.009</span></li>
+        <li><span class="t">11:42:12</span><span class="s">200</span><span class="w">Edit src/billing.ts</span><span class="c">$0.021</span></li>
+        <li><span class="t">11:42:15</span><span class="s">200</span><span class="w">Bash npm test <span class="fail">✗ exit 1</span></span><span class="c">$0.019</span></li>
+        <li><span class="t">11:42:19</span><span class="s">200</span><span class="w">Edit src/billing.ts</span><span class="c">$0.024</span></li>
+        <li><span class="t">11:42:22</span><span class="s">200</span><span class="w">Bash npm test <span class="fail">✗ exit 1 · 2/3</span></span><span class="c">$0.022</span></li>
+        <li><span class="t">11:42:26</span><span class="s">200</span><span class="w">Edit src/billing.ts</span><span class="c">$0.026</span></li>
+        <li><span class="t">11:42:29</span><span class="s">200</span><span class="w">Bash npm test <span class="fail">✗ exit 1 · 3/3</span></span><span class="c">$0.025</span></li>
+        <li class="blocked"><span class="t">11:42:31</span><span class="s">403</span><span class="w">same Bash failure 3× · session paused</span><span class="c">$0.000</span></li>
+        <li class="note"><span>→ Telegram: <b>“Same Bash failure 3 times in a row.” → replay · resume</b></span></li>
+      </ol>
+    </figure>
+  </div>
+
+  <!-- ===================== PROBLEM ===================== -->
+  <section id="why" aria-labelledby="why-h">
+    <div class="sec-head">
+      <h2 id="why-h">Agents move faster than you watch them</h2>
+      <span class="mono tag">why</span>
+    </div>
+    <p class="lede">Provider dashboards tell you what happened yesterday. Leash says no at the moment it matters, on the request itself.</p>
+    <div class="problems">
+      <div class="problem">
+        <span class="k">Loops</span>
+        <h3>The same failing test, forty times</h3>
+        <p>Agents re-read the same file and re-run the same broken command until a quota or a card runs out.</p>
+      </div>
+      <div class="problem">
+        <span class="k">Spend</span>
+        <h3>One night, one bill</h3>
+        <p>A background agent with a raw API key has no ceiling. Nobody notices until the invoice.</p>
+      </div>
+      <div class="problem">
+        <span class="k">Leaks</span>
+        <h3>Your <code>.env</code> in someone’s prompt</h3>
+        <p>Keys pasted into prompts or pulled in by tools leave your machine in plain text, and agents hold the real provider key.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== GUARDS ===================== -->
+  <section id="guards" aria-labelledby="guards-h">
+    <div class="sec-head">
+      <h2 id="guards-h">Six guards on every request</h2>
+      <span class="mono tag">checked before the provider sees it</span>
+    </div>
+    <p class="lede">Blocks come back as a non-retryable <code>403</code> with a plain-English reason, so the agent stops and shows you why instead of hammering the gateway.</p>
+    <div class="guards">
+      <article class="guard">
+        <h3>Budgets</h3>
+        <p>Daily and monthly caps per key, plus a global daily cap. Checked before each request with a worst-case estimate, with a warning at 80%.</p>
+        <div class="result"><b>Hard stop</b><span>before the money is spent</span></div>
+      </article>
+      <article class="guard">
+        <h3>Loop kill switch</h3>
+        <p>Pauses a session that repeats the same tool call, hits the same failure again and again, or burns money too fast.</p>
+        <div class="result"><b>4× · 3× · $5/10 min</b><span>repeat · failure · velocity</span></div>
+      </article>
+      <article class="guard">
+        <h3>Secret redaction</h3>
+        <p>AWS, GitHub, Anthropic, OpenAI, Stripe, Slack and Google keys, private keys, JWTs, connection strings and <code>password=…</code> are replaced before the prompt leaves your server.</p>
+        <div class="result"><b>12 detectors</b><span>redact, block or log</span></div>
+      </article>
+      <article class="guard">
+        <h3>Virtual keys</h3>
+        <p>Each agent gets its own <code>lsh_…</code> key. Real provider keys stay on the server, encrypted with AES-256-GCM. Revoke one agent without touching the rest.</p>
+        <div class="result"><b>Hashed</b><span>never stored in plain text</span></div>
+      </article>
+      <article class="guard">
+        <h3>Model allowlist</h3>
+        <p>Pin each key to the models it may use, for example <code>claude-sonnet-*, claude-haiku-*</code>, so a config typo can’t switch a loop onto the most expensive model.</p>
+        <div class="result"><b>Per key</b><span>glob patterns</span></div>
+      </article>
+      <article class="guard">
+        <h3>Alerts &amp; replay</h3>
+        <p>Telegram or webhook alerts link to a step-by-step replay of the session. Resume a paused session from the dashboard with one click.</p>
+        <div class="result"><b>One click</b><span>to resume</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===================== HOW ===================== -->
+  <section id="how" aria-labelledby="how-h">
+    <div class="sec-head">
+      <h2 id="how-h">A drop-in base URL</h2>
+      <span class="mono tag">how it works</span>
+    </div>
+    <p class="lede">Agents keep their normal API format. You change one base URL and one key; Leash forwards the request and streams the answer back while it meters tokens and cost.</p>
+    <ol class="flow" aria-label="Request pipeline">
+      <li class="end">agent</li><li>auth</li><li>redact</li><li>loop check</li><li>budget</li><li class="end">provider</li><li>meter</li>
+    </ol>
+    <div class="how">
+      <ol class="steps">
+        <li><b>Auth.</b> Only <code>lsh_</code> keys are accepted; the real provider key is decrypted on the server for this one call.</li>
+        <li><b>Redact.</b> Secrets in user and tool-result content are replaced. Assistant turns and thinking blocks are left alone, so prompt caching and extended thinking keep working.</li>
+        <li><b>Loop check.</b> The rules read the conversation history the agent sends, so they need no stored state and survive restarts.</li>
+        <li><b>Budget.</b> A capped worst-case estimate is checked against key and global limits before anything is forwarded.</li>
+        <li><b>Meter.</b> Token usage is read from the stream itself and priced per model. Leash stores counts, costs and tool names, never full prompts.</li>
+      </ol>
+      <div class="code">
+        <div class="cap"><span>What the agent sees</span></div>
+<pre><span class="cm">HTTP/1.1 403 Forbidden</span>
+{
+  <span class="k2">"type"</span>: <span class="st">"error"</span>,
+  <span class="k2">"error"</span>: {
+    <span class="k2">"type"</span>: <span class="st">"permission_error"</span>,
+    <span class="k2">"message"</span>: <span class="st">"Leash stopped this request:
+      Same Bash failure 3 times in a
+      row: FAIL src/billing.test.ts.
+      Review and resume at https://
+      leash.example.com/sessions/a3f9"</span>
+  }
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SETUP ===================== -->
+  <section id="setup" aria-labelledby="setup-h">
+    <div class="sec-head">
+      <h2 id="setup-h">Running in five minutes</h2>
+      <span class="mono tag">any server with Docker</span>
+    </div>
+    <p class="lede">The production compose file runs Leash behind Caddy, which gets a TLS certificate for your domain automatically. The container runs as non-root with a read-only filesystem.</p>
+    <div class="setup">
+      <div class="wide">
+        <div class="step-h"><span class="n">1</span><h3>Deploy</h3></div>
+        <div class="code">
+          <div class="cap"><span>shell</span><button class="copy" type="button" data-copy="deploy">Copy</button></div>
+<pre id="deploy">git clone https://github.com/quandapro/leash && cd leash
+cp .env.example .env    <span class="cm"># set LEASH_ADMIN_TOKEN, LEASH_SECRET, LEASH_DOMAIN</span>
+docker compose up -d</pre>
+        </div>
+        <p class="note-line">Then open your domain, sign in with the admin token, add a provider key and create one Leash key per agent.</p>
+      </div>
+      <div>
+        <div class="step-h"><span class="n">2</span><h3>Claude Code</h3></div>
+        <div class="code">
+          <div class="cap"><span>shell</span><button class="copy" type="button" data-copy="claude">Copy</button></div>
+<pre id="claude">export ANTHROPIC_BASE_URL=https://leash.example.com/anthropic
+export ANTHROPIC_API_KEY=lsh_your_leash_key</pre>
+        </div>
+      </div>
+      <div>
+        <div class="step-h"><span class="n">2</span><h3>Codex CLI</h3></div>
+        <div class="code">
+          <div class="cap"><span>~/.codex/config.toml</span><button class="copy" type="button" data-copy="codex">Copy</button></div>
+<pre id="codex">model_provider = "leash"
+
+[model_providers.leash]
+name = "Leash"
+base_url = "https://leash.example.com/openai/v1"
+env_key = "LEASH_API_KEY"
+wire_api = "responses"</pre>
+        </div>
+      </div>
+    </div>
+    <p class="note-line">Cline, aider, Continue, OpenClaw, Hermes and other OpenAI-compatible clients: base URL <code>https://leash.example.com/openai/v1</code>, API key = your Leash key. Subscription logins (Claude Pro/Max, ChatGPT Plus) can’t be proxied.</p>
+  </section>
+
+  <!-- ===================== FACTS ===================== -->
+  <section id="facts" aria-labelledby="facts-h">
+    <div class="sec-head">
+      <h2 id="facts-h">Small enough to trust</h2>
+      <span class="mono tag">measured, not estimated</span>
+    </div>
+    <ul class="facts">
+      <li><span class="v">0</span><span class="l">runtime dependencies: only Node.js built-ins</span></li>
+      <li><span class="v">63 MB</span><span class="l">Docker image, about 100 MB of RAM</span></li>
+      <li><span class="v">~1 ms</span><span class="l">added latency per request</span></li>
+      <li><span class="v">MIT</span><span class="l">open source, self-hosted, no telemetry</span></li>
+    </ul>
+    <ul class="list">
+      <li><span class="what">Nothing between your key and the API</span><span class="who">No npm packages at runtime: <code>node:http</code>, <code>fetch</code>, <code>node:sqlite</code> and <code>node:crypto</code>. Fewer moving parts, fewer CVEs.</span></li>
+      <li><span class="what">Tested like production</span><span class="who">Every change runs an end-to-end scenario against the production image, capped at 2 vCPU and 4 GB, as a non-root user on a read-only filesystem.</span></li>
+      <li><span class="what">Private by design</span><span class="who">Stores token counts, costs, tool names and short redacted previews. Never full prompts or responses. Records are purged after 30 days by default.</span></li>
+      <li><span class="what">A hardened dashboard</span><span class="who">Strict CSP, CSRF tokens, SameSite cookies and login lockout. Everything server-rendered and escaped.</span></li>
+    </ul>
+  </section>
+
+  <div class="cta">
+    <div>
+      <h2>Put your agents on a leash.</h2>
+      <p>Free and open source. Runs on any small VPS with Docker and uses about 100 MB of RAM.</p>
+    </div>
+    <div>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/quandapro/leash">Get Leash on GitHub</a>
+      </div>
+      <p class="fine soon mono"><span class="chip">soon</span> One-click deploy on Hostinger</p>
+    </div>
+  </div>
+
+  <footer class="mono">
+    <span>Built by <a href="/">Duong Anh Quan</a></span>
+    <span><a href="https://github.com/quandapro/leash/blob/main/SECURITY.md">Security</a> · <a href="https://github.com/quandapro/leash/blob/main/LICENSE">MIT licence</a></span>
+  </footer>
+</div>
+
+<script>
+  // Copy buttons
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var el = document.getElementById(btn.dataset.copy);
+      var text = el.innerText.replace(/\s+#.*$/gm, '');
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+      });
+    });
+  });
+
+  // Replay the gateway log once it scrolls into view
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#log li'));
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    document.documentElement.classList.add('js');
+    rows.forEach(function (r) { r.classList.add('pending'); });
+    function play() {
+      rows.forEach(function (r, i) {
+        var delay = i * 420 + (r.classList.contains('blocked') ? 500 : 0) + (r.classList.contains('note') ? 900 : 0);
+        setTimeout(function () { r.classList.remove('pending'); r.classList.add('in'); }, delay);
+      });
+    }
+    var io = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) { io.disconnect(); play(); }
+    }, { threshold: 0.3 });
+    io.observe(document.getElementById('log'));
+  })();
+</script>
+</body>
+</html>
